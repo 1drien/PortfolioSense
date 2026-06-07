@@ -9,29 +9,37 @@ END_DATE   = "2024-12-31"
 
 # --- Univers d'actifs : 25 actions S&P 500 diversifiées ---
 TICKERS = [
-    # Technologie (5)
+    # Technologie (8)
     "AAPL",   # Apple
     "MSFT",   # Microsoft
     "NVDA",   # Nvidia
     "GOOGL",  # Alphabet
     "META",   # Meta
+    "AMD",    # Advanced Micro Devices
+    "INTC",   # Intel
+    "CRM",    # Salesforce
 
-    # Finance (4)
+    # Finance (6)
     "JPM",    # JPMorgan Chase
     "BAC",    # Bank of America
     "GS",     # Goldman Sachs
     "BLK",    # BlackRock
+    "MS",     # Morgan Stanley
+    "AXP",    # American Express
 
-    # Santé (4)
+    # Santé (6)
     "JNJ",    # Johnson & Johnson
     "UNH",    # UnitedHealth
     "PFE",    # Pfizer
     "ABBV",   # AbbVie
+    "MRK",    # Merck
+    "LLY",    # Eli Lilly
 
-    # Consommation discrétionnaire (3)
+    # Consommation discrétionnaire (4)
     "AMZN",   # Amazon
     "TSLA",   # Tesla
     "HD",     # Home Depot
+    "NKE",    # Nike
 
     # Consommation de base (3)
     "PG",     # Procter & Gamble
@@ -42,9 +50,11 @@ TICKERS = [
     "XOM",    # ExxonMobil
     "CVX",    # Chevron
 
-    # Industrie (2)
+    # Industrie (3)
     "CAT",    # Caterpillar
     "BA",     # Boeing
+    "HON",    # Honeywell
+    "UPS",    # United Parcel Service
 
     # Immobilier (1)
     "PLD",    # Prologis
