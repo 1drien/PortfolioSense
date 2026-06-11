@@ -152,7 +152,7 @@ def run_gfc_stress():
     os.makedirs(DATA_DIR, exist_ok=True)
     stats.to_csv(DATA_DIR + "stress_gfc2008.csv")
     dd.to_frame("max_drawdown").to_csv(DATA_DIR + "drawdown_gfc2008.csv")
-    print(f"\n  💾 Sauvegardé → {DATA_DIR}stress_gfc2008.csv")
+    print(f"\n  Sauvegardé → {DATA_DIR}stress_gfc2008.csv")
 
     return stats, dd
 
@@ -181,7 +181,7 @@ def run_covid_stress(returns_full, prices_full):
 
     stats.to_csv(DATA_DIR + "stress_covid2020.csv")
     dd.to_frame("max_drawdown").to_csv(DATA_DIR + "drawdown_covid2020.csv")
-    print(f"\n  💾 Sauvegardé → {DATA_DIR}stress_covid2020.csv")
+    print(f"\n  Sauvegardé → {DATA_DIR}stress_covid2020.csv")
 
     return stats, dd
 
@@ -210,7 +210,7 @@ def run_rates_stress(returns_full, prices_full):
 
     stats.to_csv(DATA_DIR + "stress_rates2022.csv")
     dd.to_frame("max_drawdown").to_csv(DATA_DIR + "drawdown_rates2022.csv")
-    print(f"\n  💾 Sauvegardé → {DATA_DIR}stress_rates2022.csv")
+    print(f"\n  Sauvegardé → {DATA_DIR}stress_rates2022.csv")
 
     return stats, dd
 
@@ -234,7 +234,7 @@ def compare_crises(stats_covid, stats_rates):
     print(compare.to_string())
 
     compare.to_csv(DATA_DIR + "stress_comparaison.csv")
-    print(f"\n  💾 Sauvegardé → {DATA_DIR}stress_comparaison.csv")
+    print(f"\n  Sauvegardé → {DATA_DIR}stress_comparaison.csv")
 
 
 # ── Pipeline principal ─────────────────────────────────────
@@ -259,7 +259,7 @@ def run_stress_pipeline():
     # Comparaison
     compare_crises(stats_covid, stats_rates)
 
-    print(f"\n\n✅ Stress tests terminés — fichiers sauvegardés dans {DATA_DIR}")
+    print(f"\n\n Stress tests terminés — fichiers sauvegardés dans {DATA_DIR}")
     print("   stress_gfc2008.csv | stress_covid2020.csv | stress_rates2022.csv")
     print("   drawdown_gfc2008.csv | drawdown_covid2020.csv | drawdown_rates2022.csv")
     print("   stress_comparaison.csv")
