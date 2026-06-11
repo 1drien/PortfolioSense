@@ -110,3 +110,18 @@ def compare_strategies(returns):
         row.update(r["metrics"])
         results.append(row)
     return pd.DataFrame(results).set_index("strategy")
+
+def get_strategy_from_profile(profile: str, returns):
+    """Sélectionne la stratégie selon le profil utilisateur."""
+    mapping = {
+        "conservateur": min_variance,
+        "equilibre":    risk_parity,
+        "agressif":     max_sharpe,
+    }
+    return mapping.get(profile, risk_parity)(returns)
+
+
+def weights_to_euros(weights: dict, capital: float) -> dict:
+    """Convertit les poids en montants euros."""
+    return {ticker: round(w * capital, 2)
+            for ticker, w in weights.items() if w > 0.001}
