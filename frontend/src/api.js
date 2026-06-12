@@ -1,9 +1,13 @@
 // Client API — toutes les requêtes vers le backend FastAPI
 const BASE = "http://localhost:8000";
 
-function token() { return localStorage.getItem("ps_token"); }
+function token() {
+  return localStorage.getItem("ps_token");
+}
 
-export function isLoggedIn() { return !!token(); }
+export function isLoggedIn() {
+  return !!token();
+}
 
 export function logout() {
   localStorage.removeItem("ps_token");
@@ -19,7 +23,10 @@ async function request(path, options = {}) {
       ...options.headers,
     },
   });
-  if (res.status === 401) { logout(); return; }
+  if (res.status === 401) {
+    logout();
+    return;
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Erreur serveur");
@@ -29,9 +36,15 @@ async function request(path, options = {}) {
 
 export const api = {
   register: (email, password) =>
-    request("/api/register", { method: "POST", body: JSON.stringify({ email, password }) }),
+    request("/api/register", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
   login: (email, password) =>
-    request("/api/login", { method: "POST", body: JSON.stringify({ email, password }) }),
+    request("/api/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
   getProfile: () => request("/api/profile"),
   saveProfile: (data) =>
     request("/api/profile", { method: "POST", body: JSON.stringify(data) }),
@@ -41,4 +54,5 @@ export const api = {
   regimes: () => request("/api/regimes"),
   backtest: () => request("/api/backtest"),
   explain: () => request("/api/explain"),
+  refresh: () => request("/api/refresh", { method: "POST" }),
 };

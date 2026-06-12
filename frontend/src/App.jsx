@@ -6,7 +6,7 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
-import { isLoggedIn, logout } from "./api";
+import { isLoggedIn, logout, api } from "./api";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Portfolio from "./pages/Portfolio";
@@ -15,6 +15,24 @@ import Regimes from "./pages/Regimes";
 import Performance from "./pages/Performance";
 import Rebalance from "./pages/Rebalance";
 function Layout({ children }) {
+  const [refreshing, setRefreshing] = React.useState(false);
+  const [refreshMsg, setRefreshMsg] = React.useState(null);
+
+  async function refresh() {
+    setRefreshing(true);
+    setRefreshMsg(null);
+    try {
+      const r = await api.refresh();
+      setRefreshMsg(r.message);
+      if (r.status === "updated")
+        setTimeout(() => window.location.reload(), 1500);
+    } catch {
+      setRefreshMsg("Erreur de connexion aux marchés.");
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   return (
     <div className="app">
       <aside className="sidebar">
@@ -39,6 +57,25 @@ function Layout({ children }) {
         <NavLink to="/reequilibrage" className="nav-link">
           🔄 Rééquilibrage
         </NavLink>
+
+        <div style={{ padding: "16px 12px" }}>
+          <button
+            className="btn btn-primary btn-block"
+            style={{ fontSize: 13, padding: "9px 12px" }}
+            onClick={refresh}
+            disabled={refreshing}
+          >
+            {refreshing ? "⏳ Mise à jour..." : "🔄 Actualiser les marchés"}
+          </button>
+          {refreshMsg && (
+            <div
+              style={{ fontSize: 11.5, color: "var(--text-2)", marginTop: 8 }}
+            >
+              {refreshMsg}
+            </div>
+          )}
+        </div>
+
         <div className="sidebar-footer">
           <button onClick={logout}>Se déconnecter</button>
           <div style={{ marginTop: 8 }}>

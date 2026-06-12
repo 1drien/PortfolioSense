@@ -379,6 +379,62 @@ def compare(body: CurrentPositions, authorization: str = Header("")):
     rows.sort(key=lambda x: -abs(x["ecart_eur"]))
     return {"total": total, "profil": prof["profil"], "comparison": rows}
 
+@app.post("/api/refresh")
+def refresh_data(authorization: str = Header("")):
+    auth(authorization)
+    try:
+        import yfinance as yf
+
+        returns = load_returns()
+        tickers = list(returns.columns)
+        last_date = returns.index[-1].date()
+
+        # Télécharger depuis la dernière date connue jusqu'à aujourd'hui
+        raw = yf.download(
+            tickers,
+            start=str(last_date),
+            auto_adjust=True,
+            progress=False,
+        )["Close"]
+
+        if raw.empty or len(raw) < 2:
+            return {
+                "status": "already_up_to_date",
+                "last_date": str(last_date),
+                "message": "Les données sont déjà à jour.",
+            }
+
+        # Calculer les nouveaux log-rendements
+        new_returns = np.log(raw / raw.shift(1)).dropna()
+        new_returns = new_returns[returns.columns]  # même ordre de colonnes
+
+        # Fusionner sans doublons et sauvegarder
+        combined = pd.concat([returns, new_returns])
+        combined = combined[~combined.index.duplicated(keep="last")]
+        combined.to_csv(DATA_PATH)
+
+        # Invalider les caches pour forcer le recalcul
+        load_returns.cache_clear()
+        train_hmm.cache_clear()
+
+        n_new = len(combined) - len(returns)
+        return {
+            "status": "updated",
+            "last_date": str(combined.index[-1].date()),
+            "new_days": n_new,
+            "message": f"{n_new} nouveaux jours de marché intégrés. "
+                       f"Régimes et allocations recalculés.",
+        }
+
+    except Exception as e:
+        # Fallback : on continue avec les données locales
+        return {
+            "status": "offline",
+            "last_date": str(load_returns().index[-1].date()),
+            "message": "Connexion aux marchés indisponible — "
+                       "les données locales restent utilisées.",
+        }
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
