@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from metrics.drawdowns import compute_max_drawdown
+from risk.metrics.drawdowns import compute_max_drawdown
 
 def run_stress_tests(returns: pd.Series) -> pd.DataFrame:
     """

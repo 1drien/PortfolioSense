@@ -15,5 +15,3 @@ from .metrics.performance import compute_sharpe_ratio, compute_sortino_ratio, co
 # Models (Conservez vos anciens fichiers dans le sous-dossier models/)
 from .models.stress import run_stress_tests
 from .models.backtest import kupiec_pof_test
-
-from .mock_data import generate_mock_returns
