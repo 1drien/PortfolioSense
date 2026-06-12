@@ -55,6 +55,25 @@ export default function Portfolio() {
   return (
     <>
       <h1>Mon portefeuille</h1>
+      <button
+        className="btn btn-primary"
+        style={{ position: "absolute", top: 40, right: 48 }}
+        onClick={async () => {
+          const res = await fetch("http://localhost:8000/api/report", {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("ps_token")}`,
+            },
+          });
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "PortfolioSense_Rapport.pdf";
+          a.click();
+        }}
+      >
+        📄 Télécharger mon rapport
+      </button>
       <p className="subtitle">
         Stratégie appliquée : <strong>{STRAT_LABELS[data.profil]}</strong>
       </p>

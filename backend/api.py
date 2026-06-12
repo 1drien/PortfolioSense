@@ -26,7 +26,8 @@ from risk import (
     compute_historical_var, compute_cvar, compute_max_drawdown,
     compute_annualized_volatility, run_stress_tests, kupiec_pof_test,
 )
-
+from fastapi.responses import Response
+from backend.pdf_report import build_pdf
 app = FastAPI(title="PortfolioSense API")
 app.add_middleware(
     CORSMiddleware,
@@ -303,7 +304,6 @@ def backtest(authorization: str = Header("")):
         })
     return {"capital": cap, "results": rows}
 
-
 @app.get("/api/explain")
 def explain(authorization: str = Header("")):
     user_id = auth(authorization)
@@ -311,7 +311,24 @@ def explain(authorization: str = Header("")):
     returns = load_returns()
     return {"explanations": explain_portfolio(returns, prof["profil"])}
 
+@app.get("/api/report")
+def report(authorization: str = Header("")):
+    user_id = auth(authorization)
+    prof = get_profile(user_id)
+    returns = load_returns()
 
+    # Réutiliser la logique des endpoints existants
+    p = portfolio(authorization)
+    r = risk_metrics(authorization)
+    e = explain(authorization)["explanations"]
+
+    pdf_bytes = build_pdf(prof, p, r, e)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=PortfolioSense_Rapport.pdf"},
+    )
+    
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
