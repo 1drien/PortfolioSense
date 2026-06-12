@@ -328,7 +328,57 @@ def report(authorization: str = Header("")):
         media_type="application/pdf",
         headers={"Content-Disposition": "attachment; filename=PortfolioSense_Rapport.pdf"},
     )
-    
+
+class CurrentPositions(BaseModel):
+    positions: dict   # {"AAPL": 3000, "TSLA": 500} — montants en euros
+
+
+@app.post("/api/compare")
+def compare(body: CurrentPositions, authorization: str = Header("")):
+    user_id = auth(authorization)
+    prof = get_profile(user_id)
+    returns = load_returns()
+
+    result = get_strategy_from_profile(prof["profil"], returns)
+    optimal_weights = result["weights"]
+
+    total = sum(body.positions.values())
+    if total <= 0:
+        raise HTTPException(400, "Portefeuille vide")
+
+    # Normaliser les tickers (évite les doublons aapl/AAPL)
+    positions = {t.upper().strip(): v for t, v in body.positions.items()}
+
+    rows = []
+    all_tickers = set(positions) | {
+        t for t, w in optimal_weights.items() if w > 0.005
+    }
+    for t in sorted(all_tickers):
+        current_eur = positions.get(t, 0)
+        current_pct = current_eur / total * 100
+        optimal_pct = optimal_weights.get(t, 0) * 100
+        optimal_eur = optimal_weights.get(t, 0) * total
+        ecart_eur = round(optimal_eur - current_eur)
+
+        if abs(ecart_eur) < total * 0.02:        # < 2% d'écart = OK
+            statut, action = "ok", "Conserver"
+        elif ecart_eur > 0:
+            statut, action = "sous", f"Acheter {ecart_eur:,} €".replace(",", " ")
+        else:
+            statut, action = "sur", f"Vendre {abs(ecart_eur):,} €".replace(",", " ")
+
+        rows.append({
+            "ticker": t,
+            "current_pct": round(current_pct, 1),
+            "optimal_pct": round(optimal_pct, 1),
+            "ecart_eur": ecart_eur,
+            "statut": statut,
+            "action": action,
+        })
+
+    rows.sort(key=lambda x: -abs(x["ecart_eur"]))
+    return {"total": total, "profil": prof["profil"], "comparison": rows}
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
