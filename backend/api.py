@@ -1,0 +1,309 @@
+# backend/api.py
+# API REST PortfolioSense — expose les modules Python au frontend React
+# Lancer DEPUIS LA RACINE du repo : uvicorn backend.api:app --reload --port 8000
+
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+import pandas as pd
+import numpy as np
+from fastapi import FastAPI, HTTPException, Header
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from functools import lru_cache
+
+from backend.database import (
+    init_db, create_user, verify_user, create_session,
+    get_user_from_token, get_profile, update_profile,
+)
+
+from optimization.optimizer import (
+    get_strategy_from_profile, weights_to_euros,
+    max_sharpe, min_variance, risk_parity, efficient_frontier_curve,
+)
+from risk import (
+    compute_historical_var, compute_cvar, compute_max_drawdown,
+    compute_annualized_volatility, run_stress_tests, kupiec_pof_test,
+)
+
+app = FastAPI(title="PortfolioSense API")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+init_db()
+
+DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "returns_clean.csv")
+
+
+@lru_cache(maxsize=1)
+def load_returns():
+    return pd.read_csv(DATA_PATH, index_col=0, parse_dates=True)
+
+
+def auth(authorization: str = "") -> str:
+    """Vérifie le token Bearer et retourne le user_id."""
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(401, "Non authentifié")
+    user_id = get_user_from_token(authorization[7:])
+    if not user_id:
+        raise HTTPException(401, "Session invalide")
+    return user_id
+
+
+# ─── AUTH ─────────────────────────────────────────────────────────
+
+class Credentials(BaseModel):
+    email: str
+    password: str
+
+
+@app.post("/api/register")
+def register(creds: Credentials):
+    if len(creds.password) < 6:
+        raise HTTPException(400, "Mot de passe trop court (6 caractères min)")
+    user_id = create_user(creds.email, creds.password)
+    if not user_id:
+        raise HTTPException(409, "Cet email est déjà utilisé")
+    token = create_session(user_id)
+    return {"token": token}
+
+
+@app.post("/api/login")
+def login(creds: Credentials):
+    user_id = verify_user(creds.email, creds.password)
+    if not user_id:
+        raise HTTPException(401, "Email ou mot de passe incorrect")
+    token = create_session(user_id)
+    return {"token": token}
+
+
+# ─── PROFIL ───────────────────────────────────────────────────────
+
+class ProfileUpdate(BaseModel):
+    capital: float
+    horizon: int
+    perte_max: int
+
+
+def deduce_profil(perte_max: int) -> str:
+    if perte_max <= 10:
+        return "conservateur"
+    if perte_max <= 25:
+        return "equilibre"
+    return "agressif"
+
+
+@app.get("/api/profile")
+def read_profile(authorization: str = Header("")):
+    user_id = auth(authorization)
+    return get_profile(user_id)
+
+
+@app.post("/api/profile")
+def save_profile(body: ProfileUpdate, authorization: str = Header("")):
+    user_id = auth(authorization)
+    profil = deduce_profil(body.perte_max)
+    update_profile(user_id, body.capital, body.horizon, body.perte_max, profil)
+    return {"profil": profil}
+
+
+# ─── PORTEFEUILLE ─────────────────────────────────────────────────
+
+@app.get("/api/portfolio")
+def portfolio(authorization: str = Header("")):
+    user_id = auth(authorization)
+    prof = get_profile(user_id)
+    returns = load_returns()
+
+    result = get_strategy_from_profile(prof["profil"], returns)
+    weights = result["weights"]
+    euros = weights_to_euros(weights, prof["capital"])
+
+    allocation = [
+        {"ticker": t, "euros": e, "pct": round(weights[t] * 100, 1)}
+        for t, e in sorted(euros.items(), key=lambda x: -x[1])
+    ]
+    return {
+        "profil": prof["profil"],
+        "capital": prof["capital"],
+        "metrics": result["metrics"],
+        "gain_espere": round(prof["capital"] * result["metrics"]["return"]),
+        "allocation": allocation,
+    }
+
+
+@app.get("/api/frontier")
+def frontier(authorization: str = Header("")):
+    auth(authorization)
+    returns = load_returns()
+    curve = efficient_frontier_curve(returns, n_portfolios=800)
+
+    points = curve.round(4).to_dict(orient="records")
+    strategies = {}
+    for name, fn in [("max_sharpe", max_sharpe),
+                     ("min_variance", min_variance),
+                     ("risk_parity", risk_parity)]:
+        m = fn(returns)["metrics"]
+        strategies[name] = m
+    return {"cloud": points, "strategies": strategies}
+
+
+# ─── RISQUE ───────────────────────────────────────────────────────
+
+@app.get("/api/risk")
+def risk_metrics(authorization: str = Header("")):
+    user_id = auth(authorization)
+    prof = get_profile(user_id)
+    returns = load_returns()
+
+    result = get_strategy_from_profile(prof["profil"], returns)
+    weights = pd.Series(result["weights"])
+    pf = returns[weights.index] @ weights
+
+    var_h  = float(compute_historical_var(pf))
+    cvar   = float(compute_cvar(pf))
+    max_dd = float(compute_max_drawdown(pf))
+    cap    = prof["capital"]
+
+    stress = run_stress_tests(pf)
+    stress_list = [
+        {
+            "crise": idx,
+            "rendement": row["Rendement Cumulé"],
+            "drawdown": row["Max Drawdown"],
+            "impact_eur": round(float(row["Rendement Cumulé"].strip("%")) / 100 * cap),
+        }
+        for idx, row in stress.iterrows()
+    ]
+
+    kupiec = kupiec_pof_test(pf, var_h)
+
+    return {
+        "var_pct": round(var_h * 100, 2),
+        "var_eur": round(abs(var_h) * cap),
+        "cvar_pct": round(cvar * 100, 2),
+        "cvar_eur": round(abs(cvar) * cap),
+        "max_dd_pct": round(max_dd * 100, 2),
+        "max_dd_eur": round(abs(max_dd) * cap),
+        "volatilite_pct": round(float(compute_annualized_volatility(pf)) * 100, 1),
+        "stress_tests": stress_list,
+        "kupiec_valide": bool(kupiec.get("Modèle Valide (> 5%)", False)),
+        "kupiec_pvalue": kupiec.get("P-Value Kupiec"),
+    }
+
+
+# ─── RÉGIMES DE MARCHÉ (HMM) ──────────────────────────────────────
+
+@lru_cache(maxsize=1)
+def train_hmm():
+    from hmmlearn.hmm import GaussianHMM
+    from sklearn.preprocessing import StandardScaler
+
+    returns = load_returns()
+    market = returns.mean(axis=1)
+
+    feats = pd.DataFrame(index=market.index)
+    feats["ret"] = market
+    feats["vol_20d"] = market.rolling(20).std()
+    feats["ret_5d"] = market.rolling(5).sum()
+    feats = feats.dropna()
+
+    X = StandardScaler().fit_transform(feats.values)
+    best_model, best_score = None, -np.inf
+    for seed in range(5):
+        m = GaussianHMM(n_components=3, covariance_type="full",
+                        n_iter=200, random_state=seed)
+        m.fit(X)
+        if m.score(X) > best_score:
+            best_score, best_model = m.score(X), m
+
+    states = best_model.predict(X)
+    state_ret = {s: float(market.loc[feats.index][states == s].mean())
+                 for s in range(3)}
+    ordered = sorted(state_ret, key=state_ret.get)
+    labels = {ordered[0]: "bear", ordered[1]: "lateral", ordered[2]: "bull"}
+
+    regimes = pd.Series([labels[s] for s in states], index=feats.index)
+    cumulative = (1 + market.loc[feats.index]).cumprod()
+    return regimes, cumulative
+
+
+REGIME_META = {
+    "bull":    {"label": "Marché haussier", "emoji": "🟢",
+                "strategie": "Maximum Sharpe", "profil": "agressif",
+                "explication": "Les marchés sont confiants : rendements positifs, volatilité faible. C'est le moment de viser la performance."},
+    "bear":    {"label": "Marché en crise", "emoji": "🔴",
+                "strategie": "Minimum Variance", "profil": "conservateur",
+                "explication": "Turbulences détectées : les actifs chutent et se corrèlent. Il faut se replier sur les valeurs défensives."},
+    "lateral": {"label": "Marché indécis", "emoji": "🟡",
+                "strategie": "Risk Parity", "profil": "equilibre",
+                "explication": "Le marché hésite, sans tendance claire. La meilleure défense est un risque parfaitement équilibré."},
+}
+
+
+@app.get("/api/regimes")
+def regimes(authorization: str = Header("")):
+    user_id = auth(authorization)
+    prof = get_profile(user_id)
+    reg, cumulative = train_hmm()
+
+    current = reg.iloc[-1]
+    meta = REGIME_META[current]
+
+    # Sous-échantillonner l'historique pour le frontend (1 point / 3 jours)
+    step = 3
+    history = [
+        {"date": str(d.date()), "value": round(float(v), 4),
+         "regime": str(reg.loc[d])}
+        for d, v in cumulative.iloc[::step].items()
+    ]
+
+    counts = reg.value_counts(normalize=True)
+    repartition = {k: round(float(v) * 100) for k, v in counts.items()}
+
+    return {
+        "regime_actuel": current,
+        "meta": meta,
+        "aligne": prof["profil"] == meta["profil"],
+        "profil_user": prof["profil"],
+        "history": history,
+        "repartition": repartition,
+    }
+
+
+# ─── PERFORMANCE (BACKTEST) ───────────────────────────────────────
+
+@app.get("/api/backtest")
+def backtest(authorization: str = Header("")):
+    user_id = auth(authorization)
+    prof = get_profile(user_id)
+    path = os.path.join(os.path.dirname(__file__), "..", "data", "backtest_results.csv")
+
+    if os.path.exists(path):
+        df = pd.read_csv(path, index_col=0)
+    else:
+        from optimization.backtest import compare_backtests
+        df = compare_backtests(load_returns())
+        df.to_csv(path)
+
+    cap = prof["capital"]
+    rows = []
+    for name, r in df.iterrows():
+        rows.append({
+            "strategie": name.replace("_", " ").title(),
+            "rendement_ann": round(r["return_ann"] * 100, 1),
+            "sharpe": round(r["sharpe"], 2),
+            "max_dd": round(r["max_drawdown"] * 100, 1),
+            "valeur_finale": round((1 + r["cum_return"]) * cap),
+        })
+    return {"capital": cap, "results": rows}
+
+
+@app.get("/api/health")
+def health():
+    return {"status": "ok"}
