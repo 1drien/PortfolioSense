@@ -12,7 +12,7 @@ from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from functools import lru_cache
-
+from backend.shap_explain import explain_portfolio
 from backend.database import (
     init_db, create_user, verify_user, create_session,
     get_user_from_token, get_profile, update_profile,
@@ -302,6 +302,14 @@ def backtest(authorization: str = Header("")):
             "valeur_finale": round((1 + r["cum_return"]) * cap),
         })
     return {"capital": cap, "results": rows}
+
+
+@app.get("/api/explain")
+def explain(authorization: str = Header("")):
+    user_id = auth(authorization)
+    prof    = get_profile(user_id)
+    returns = load_returns()
+    return {"explanations": explain_portfolio(returns, prof["profil"])}
 
 
 @app.get("/api/health")

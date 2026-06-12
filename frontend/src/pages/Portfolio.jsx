@@ -1,14 +1,33 @@
 import React, { useState, useEffect } from "react";
 import {
-  PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
-  ScatterChart, Scatter, XAxis, YAxis, ZAxis, Legend, CartesianGrid,
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  ScatterChart,
+  Scatter,
+  XAxis,
+  YAxis,
+  ZAxis,
+  Legend,
+  CartesianGrid,
 } from "recharts";
 import { api } from "../api";
 
 const COLORS = [
-  "#0d6b58", "#1d9e75", "#3eb489", "#65c39e", "#8dd2b4",
-  "#185fa5", "#378add", "#6aa9e8", "#9bc6f0", "#c2421f",
-  "#d85a30", "#e58a64",
+  "#0d6b58",
+  "#1d9e75",
+  "#3eb489",
+  "#65c39e",
+  "#8dd2b4",
+  "#185fa5",
+  "#378add",
+  "#6aa9e8",
+  "#9bc6f0",
+  "#c2421f",
+  "#d85a30",
+  "#e58a64",
 ];
 
 const STRAT_LABELS = {
@@ -20,13 +39,16 @@ const STRAT_LABELS = {
 export default function Portfolio() {
   const [data, setData] = useState(null);
   const [frontier, setFrontier] = useState(null);
+  const [explanations, setExplanations] = useState(null);
 
   useEffect(() => {
     api.portfolio().then(setData);
     api.frontier().then(setFrontier);
+    api.explain().then((r) => setExplanations(r.explanations));
   }, []);
 
-  if (!data) return <div className="loading">Optimisation de votre portefeuille...</div>;
+  if (!data)
+    return <div className="loading">Optimisation de votre portefeuille...</div>;
 
   const top12 = data.allocation.slice(0, 12);
 
@@ -50,7 +72,9 @@ export default function Portfolio() {
           <div className="metric-value positive">
             +{data.gain_espere.toLocaleString("fr-FR")} € / an
           </div>
-          <div className="metric-sub">Sur votre capital de {data.capital.toLocaleString("fr-FR")} €</div>
+          <div className="metric-sub">
+            Sur votre capital de {data.capital.toLocaleString("fr-FR")} €
+          </div>
         </div>
         <div className="card metric">
           <div className="metric-label">Ratio de Sharpe</div>
@@ -61,7 +85,9 @@ export default function Portfolio() {
 
       <div className="grid-2">
         <div className="card">
-          <h2>Votre allocation pour {data.capital.toLocaleString("fr-FR")} €</h2>
+          <h2>
+            Votre allocation pour {data.capital.toLocaleString("fr-FR")} €
+          </h2>
           <div style={{ maxHeight: 360, overflowY: "auto" }}>
             <table>
               <thead>
@@ -74,7 +100,9 @@ export default function Portfolio() {
               <tbody>
                 {data.allocation.map((a) => (
                   <tr key={a.ticker}>
-                    <td><strong>{a.ticker}</strong></td>
+                    <td>
+                      <strong>{a.ticker}</strong>
+                    </td>
                     <td className="num">{a.euros.toLocaleString("fr-FR")} €</td>
                     <td className="num">{a.pct}%</td>
                   </tr>
@@ -103,9 +131,7 @@ export default function Portfolio() {
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip
-                formatter={(v) => `${v.toLocaleString("fr-FR")} €`}
-              />
+              <Tooltip formatter={(v) => `${v.toLocaleString("fr-FR")} €`} />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -115,8 +141,9 @@ export default function Portfolio() {
         <div className="card">
           <h2>Où se situe votre portefeuille ?</h2>
           <p className="caption" style={{ marginTop: 0, marginBottom: 16 }}>
-            Chaque point gris est un portefeuille possible. Les points colorés sont
-            nos stratégies optimisées — toujours sur la frontière des meilleurs choix.
+            Chaque point gris est un portefeuille possible. Les points colorés
+            sont nos stratégies optimisées — toujours sur la frontière des
+            meilleurs choix.
           </p>
           <ResponsiveContainer width="100%" height={380}>
             <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: 10 }}>
@@ -128,7 +155,11 @@ export default function Portfolio() {
                 unit=""
                 domain={["auto", "auto"]}
                 tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
-                label={{ value: "Risque (volatilité annuelle)", position: "bottom", fontSize: 12 }}
+                label={{
+                  value: "Risque (volatilité annuelle)",
+                  position: "bottom",
+                  fontSize: 12,
+                }}
               />
               <YAxis
                 type="number"
@@ -136,7 +167,12 @@ export default function Portfolio() {
                 name="Rendement"
                 domain={["auto", "auto"]}
                 tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
-                label={{ value: "Rendement", angle: -90, position: "insideLeft", fontSize: 12 }}
+                label={{
+                  value: "Rendement",
+                  angle: -90,
+                  position: "insideLeft",
+                  fontSize: 12,
+                }}
               />
               <Tooltip
                 formatter={(v, name) => [`${(v * 100).toFixed(1)}%`, name]}
@@ -176,6 +212,36 @@ export default function Portfolio() {
         💡 PortfolioSense recommande — vous décidez. Pour appliquer cette
         allocation, passez vos ordres sur votre courtier habituel.
       </p>
+
+      {explanations && (
+        <div className="card">
+          <h2>🔍 Pourquoi ces choix ? (SHAP)</h2>
+          <p className="caption" style={{ marginTop: 0, marginBottom: 16 }}>
+            Notre IA explique chaque décision d'allocation en langage clair —
+            pas de boîte noire.
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th>Actif</th>
+                <th>Poids</th>
+                <th>Raison principale</th>
+              </tr>
+            </thead>
+            <tbody>
+              {explanations.slice(0, 10).map((e) => (
+                <tr key={e.ticker}>
+                  <td>
+                    <strong>{e.ticker}</strong>
+                  </td>
+                  <td className="num">{e.weight_pct}%</td>
+                  <td style={{ color: "var(--text-2)" }}>{e.explanation}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </>
   );
 }

@@ -40,4 +40,5 @@ export const api = {
   risk: () => request("/api/risk"),
   regimes: () => request("/api/regimes"),
   backtest: () => request("/api/backtest"),
+  explain: () => request("/api/explain"),
 };
