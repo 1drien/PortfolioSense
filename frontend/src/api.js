@@ -55,4 +55,9 @@ export const api = {
   backtest: () => request("/api/backtest"),
   explain: () => request("/api/explain"),
   refresh: () => request("/api/refresh", { method: "POST" }),
+  blackLitterman: (views, confidences) =>
+    request("/api/black-litterman", {
+      method: "POST",
+      body: JSON.stringify({ views, confidences }),
+    }),
 };

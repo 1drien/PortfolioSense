@@ -435,6 +435,36 @@ def refresh_data(authorization: str = Header("")):
                        "les données locales restent utilisées.",
         }
 
+class BLViews(BaseModel):
+    views: dict          # {"NVDA": 0.30, "PFE": -0.05}
+    confidences: dict    # {"NVDA": 0.8, "PFE": 0.6}
+
+
+@app.post("/api/black-litterman")
+def black_litterman_endpoint(body: BLViews, authorization: str = Header("")):
+    user_id = auth(authorization)
+    prof = get_profile(user_id)
+    returns = load_returns()
+
+    if not body.views:
+        raise HTTPException(400, "Ajoutez au moins une vue")
+
+    # Aligner l'ordre views/confidences
+    tickers = list(body.views.keys())
+    views = {t: body.views[t] for t in tickers}
+    confidences = [body.confidences.get(t, 0.5) for t in tickers]
+
+    from optimization.optimizer import black_litterman
+    result = black_litterman(returns, views=views, confidences=confidences)
+
+    cap = prof["capital"]
+    allocation = [
+        {"ticker": t, "euros": round(w * cap, 2), "pct": round(w * 100, 1)}
+        for t, w in sorted(result["weights"].items(), key=lambda x: -x[1])
+        if w > 0.001
+    ]
+    return {"metrics": result["metrics"], "allocation": allocation}
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
