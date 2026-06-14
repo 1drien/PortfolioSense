@@ -2,12 +2,12 @@
 #  PortfolioSense — Configuration centrale
 #  NE PAS MODIFIER sans accord du groupe
 # ============================================================
-
+from datetime import date
 # --- Période historique ---
 START_DATE = "2015-01-01"
-END_DATE   = "2024-12-31"
+END_DATE = date.today().strftime("%Y-%m-%d")
 
-# --- Univers d'actifs : 25 actions S&P 500 diversifiées ---
+# --- Univers d'actifs : 35 actions S&P 500 diversifiées ---
 TICKERS = [
     # Technologie (8)
     "AAPL",   # Apple
