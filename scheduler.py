@@ -1,6 +1,6 @@
 # ============================================================
 #  PortfolioSense — Scheduler automatique
-#  Met à jour tous les modules chaque soir à 23h
+#  Met à jour tous les modules chaque soir a 23h
 #  Lancer une fois : python scheduler.py
 # ============================================================
 
@@ -13,56 +13,59 @@ import os
 scheduler = BlockingScheduler()
 
 def run(script):
-    """Lance un script Python et affiche le résultat."""
-    print(f"\n  ▸ {script}...")
-    result = subprocess.run([sys.executable, script], capture_output=True, text=True)
+    """Lance un script Python et affiche le resultat."""
+    print(f"\n  > {script}...")
+    env = os.environ.copy()
+    env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONUTF8"] = "1"
+    result = subprocess.run(
+        [sys.executable, "-X", "utf8", script],
+        capture_output=True, text=True,
+        encoding="utf-8", errors="replace",
+        env=env
+    )
     if result.returncode == 0:
-        print(f"  ✅ {script} terminé")
+        print(f"  OK  {script} termine")
     else:
-        print(f"  ❌ Erreur dans {script} :")
-        print(result.stderr)
+        print(f"  ERREUR dans {script} :")
+        print(result.stderr[:500])
 
 @scheduler.scheduled_job('cron', hour=23, minute=0)
 def update_all():
-    """
-    Met à jour tous les modules dans l'ordre chaque soir à 23h.
-    L'ordre est important — chaque module dépend du précédent.
-    """
     print(f"\n{'='*50}")
-    print(f"  PortfolioSense — Mise à jour automatique")
+    print(f"  PortfolioSense -- Mise a jour automatique")
     print(f"  {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
     print(f"{'='*50}")
 
-    # 1. Data (toujours en premier — tout le monde en dépend)
+    # 1. Data (toujours en premier)
     run("data/pipeline.py")
     run("data/stress_tests.py")
     run("data/drawdown.py")
     run("data/attribution.py")
 
-    # 2. Optimisation (dépend des données)
+    # 2. Optimisation
     if os.path.exists("optimization/main.py"):
         run("optimization/main.py")
 
-    # 3. Risque (dépend de l'optimisation)
+    # 3. Risque
     if os.path.exists("risk/main.py"):
         run("risk/main.py")
 
-    # 4. ML (dépend de tout)
+    # 4. ML
     if os.path.exists("ml/main.py"):
         run("ml/main.py")
 
-    print(f"\n  Mise à jour complète — {datetime.now().strftime('%H:%M:%S')}")
+    print(f"\n  OK Mise a jour complete -- {datetime.now().strftime('%H:%M:%S')}")
     print(f"{'='*50}\n")
 
 
 if __name__ == "__main__":
-    print("PortfolioSense Scheduler démarré")
-    print("Mise à jour automatique tous les soirs à 23h00")
-    print("⚠  L'ordinateur doit rester allumé pour que le scheduler fonctionne")
-    print("Pour arrêter : Ctrl+C\n")
+    print("PortfolioSense Scheduler demarre")
+    print("Mise a jour automatique tous les soirs a 23h00")
+    print("ATTENTION : l'ordinateur doit rester allume")
+    print("Pour arreter : Ctrl+C\n")
 
-    # Lance aussi une mise à jour immédiate au démarrage
-    reponse = input("Lancer une mise à jour maintenant ? (o/n) : ")
+    reponse = input("Lancer une mise a jour maintenant ? (o/n) : ")
     if reponse.lower() == "o":
         update_all()
 
