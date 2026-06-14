@@ -22,9 +22,15 @@ from optimization.optimizer import (
     get_strategy_from_profile, weights_to_euros,
     max_sharpe, min_variance, risk_parity, efficient_frontier_curve,
 )
-from risk import (
+from risk.metrics import (
     compute_historical_var, compute_cvar, compute_max_drawdown,
-    compute_annualized_volatility, run_stress_tests, kupiec_pof_test,
+    compute_annualized_volatility, compute_cornish_fisher_var,
+    compute_ulcer_index, compute_sharpe_ratio, compute_sortino_ratio, 
+    compute_calmar_ratio, compute_drawdown_series,
+    compute_skewness, compute_kurtosis, test_normality_jarque_bera
+)
+from risk.models import (
+    run_stress_tests, kupiec_pof_test
 )
 from fastapi.responses import Response
 from backend.pdf_report import build_pdf
@@ -161,16 +167,18 @@ def risk_metrics(authorization: str = Header("")):
     user_id = auth(authorization)
     prof = get_profile(user_id)
     returns = load_returns()
-
+ 
     result = get_strategy_from_profile(prof["profil"], returns)
     weights = pd.Series(result["weights"])
     pf = returns[weights.index] @ weights
-
+ 
+    cap = prof["capital"]
+ 
+    # ── Métriques existantes ──────────────────────────────────────
     var_h  = float(compute_historical_var(pf))
     cvar   = float(compute_cvar(pf))
     max_dd = float(compute_max_drawdown(pf))
-    cap    = prof["capital"]
-
+ 
     stress = run_stress_tests(pf)
     stress_list = [
         {
@@ -181,20 +189,75 @@ def risk_metrics(authorization: str = Header("")):
         }
         for idx, row in stress.iterrows()
     ]
-
+ 
     kupiec = kupiec_pof_test(pf, var_h)
-
+ 
+    # ── Nouvelles métriques ───────────────────────────────────────
+ 
+    # VaR Cornish-Fisher (95 % et 99 %)
+    var_cf_95 = float(compute_cornish_fisher_var(pf, confidence=0.95))
+    var_cf_99 = float(compute_cornish_fisher_var(pf, confidence=0.99))
+ 
+    # Ulcer Index
+    ulcer = float(compute_ulcer_index(pf))
+ 
+    # Ratios
+    sortino = float(compute_sortino_ratio(pf))
+    calmar  = float(compute_calmar_ratio(pf))
+    sharpe  = float(compute_sharpe_ratio(pf))
+ 
+    # Distribution
+    skew_val = float(compute_skewness(pf))
+    kurt_val = float(compute_kurtosis(pf))
+    jb       = test_normality_jarque_bera(pf)
+ 
+    # Série temporelle des drawdowns — 1 point tous les 3 jours
+    dd_series = compute_drawdown_series(pf)
+    step = 3
+    drawdown_series = [
+        {
+            "date": str(d.date()),
+            "drawdown": round(float(v), 6),
+        }
+        for d, v in dd_series.iloc[::step].items()
+    ]
+ 
     return {
-        "var_pct": round(var_h * 100, 2),
-        "var_eur": round(abs(var_h) * cap),
-        "cvar_pct": round(cvar * 100, 2),
-        "cvar_eur": round(abs(cvar) * cap),
-        "max_dd_pct": round(max_dd * 100, 2),
-        "max_dd_eur": round(abs(max_dd) * cap),
+        # ── Existant ──────────────────────────────────────────────
+        "var_pct":        round(var_h * 100, 2),
+        "var_eur":        round(abs(var_h) * cap),
+        "cvar_pct":       round(cvar * 100, 2),
+        "cvar_eur":       round(abs(cvar) * cap),
+        "max_dd_pct":     round(max_dd * 100, 2),
+        "max_dd_eur":     round(abs(max_dd) * cap),
         "volatilite_pct": round(float(compute_annualized_volatility(pf)) * 100, 1),
-        "stress_tests": stress_list,
-        "kupiec_valide": bool(kupiec.get("Modèle Valide (> 5%)", False)),
-        "kupiec_pvalue": kupiec.get("P-Value Kupiec"),
+        "stress_tests":   stress_list,
+        "kupiec_valide":  bool(kupiec.get("Modèle Valide (> 5%)", False)),
+        "kupiec_pvalue":  kupiec.get("P-Value Kupiec"),
+ 
+        # ── Nouveau — Tail Risk ───────────────────────────────────
+        "var_cornish_fisher_95_pct": round(var_cf_95 * 100, 2),
+        "var_cornish_fisher_95_eur": round(abs(var_cf_95) * cap),
+        "var_cornish_fisher_99_pct": round(var_cf_99 * 100, 2),
+        "var_cornish_fisher_99_eur": round(abs(var_cf_99) * cap),
+ 
+        # ── Nouveau — Drawdowns ───────────────────────────────────
+        "ulcer_index":     round(ulcer, 4),
+        "drawdown_series": drawdown_series,
+ 
+        # ── Nouveau — Ratios de performance ──────────────────────
+        "sharpe_ratio":  round(sharpe, 4),
+        "sortino_ratio": round(sortino, 4),
+        "calmar_ratio":  round(calmar, 4),
+ 
+        # ── Nouveau — Distribution ────────────────────────────────
+        "skewness": round(skew_val, 4),
+        "kurtosis": round(kurt_val, 4),
+        "jarque_bera": {
+            "stat":      round(jb["Statistique JB"], 4),
+            "p_value":   round(jb["P-Value"], 6),
+            "is_normal": jb["Est Normal (> 5%)"],
+        },
     }
 
 
