@@ -274,3 +274,108 @@ class TestConfig:
         """Le dossier data/ existe"""
         assert os.path.exists(DATA_DIR), \
             "Le dossier data/ n'existe pas"
+
+
+# ════════════════════════════════════════════════
+# TESTS — Corrélations glissantes
+# ════════════════════════════════════════════════
+
+@pytest.fixture(scope="module")
+def rolling_corr():
+    path = os.path.join(DATA_DIR, "rolling_corr_mean.csv")
+    if not os.path.exists(path):
+        pytest.skip("rolling_corr_mean.csv non disponible")
+    return pd.read_csv(path, index_col=0, parse_dates=True)
+
+@pytest.fixture(scope="module")
+def rolling_pairs():
+    path = os.path.join(DATA_DIR, "rolling_corr_pairs.csv")
+    if not os.path.exists(path):
+        pytest.skip("rolling_corr_pairs.csv non disponible")
+    return pd.read_csv(path, index_col=0, parse_dates=True)
+
+
+class TestRollingCorrelation:
+    """Verifie la coherence des correlations glissantes"""
+
+    def test_file_exists(self):
+        """Le fichier rolling_corr_mean.csv existe"""
+        path = os.path.join(DATA_DIR, "rolling_corr_mean.csv")
+        assert os.path.exists(path), \
+            "rolling_corr_mean.csv manquant — lance data/rolling_correlation.py"
+
+    def test_correct_columns(self, rolling_corr):
+        """Le fichier contient les bonnes colonnes"""
+        expected = ["corr_moyenne", "corr_max", "corr_min", "regime_naif"]
+        for col in expected:
+            assert col in rolling_corr.columns, \
+                f"Colonne manquante : {col}"
+
+    def test_no_missing_values(self, rolling_corr):
+        """Pas de valeurs manquantes"""
+        assert rolling_corr.isna().sum().sum() == 0, \
+            "Des valeurs manquantes dans rolling_corr_mean.csv"
+
+    def test_correlation_range(self, rolling_corr):
+        """Les correlations glissantes sont entre -1 et 1"""
+        assert rolling_corr["corr_moyenne"].max() <= 1.0, \
+            "Correlation moyenne > 1 detectee"
+        assert rolling_corr["corr_moyenne"].min() >= -1.0, \
+            "Correlation moyenne < -1 detectee"
+        assert rolling_corr["corr_max"].max() <= 1.0, \
+            "Correlation max > 1 detectee"
+
+    def test_covid_spike(self, rolling_corr):
+        """La correlation doit etre elevee pendant le COVID (mars 2020)"""
+        covid_period = rolling_corr["2020-02-01":"2020-04-30"]["corr_moyenne"]
+        assert covid_period.max() > 0.5, \
+            f"Pic de correlation COVID trop faible : {covid_period.max():.3f}"
+
+    def test_normal_period_low_corr(self, rolling_corr):
+        """La correlation doit etre faible en periode normale (2021)"""
+        normal_period = rolling_corr["2021-01-01":"2021-12-31"]["corr_moyenne"]
+        assert normal_period.mean() < 0.40, \
+            f"Correlation 2021 anormalement elevee : {normal_period.mean():.3f}"
+
+    def test_regime_naif_values(self, rolling_corr):
+        """Les regimes naifs sont bien bull/bear/lateral"""
+        valid_regimes = {"bull", "bear", "lateral"}
+        actual = set(rolling_corr["regime_naif"].unique())
+        assert actual.issubset(valid_regimes), \
+            f"Regimes invalides detectes : {actual - valid_regimes}"
+
+    def test_bull_majority(self, rolling_corr):
+        """Le regime Bull doit etre majoritaire sur 10 ans"""
+        bull_pct = (rolling_corr["regime_naif"] == "bull").mean() * 100
+        assert bull_pct > 50, \
+            f"Regime Bull attendu majoritaire, trouve {bull_pct:.1f}%"
+
+    def test_bear_covid_detected(self, rolling_corr):
+        """Le regime Bear doit etre detecte pendant le COVID"""
+        covid = rolling_corr["2020-02-01":"2020-06-30"]["regime_naif"]
+        bear_count = (covid == "bear").sum()
+        assert bear_count > 0, \
+            "Aucun regime Bear detecte pendant le COVID"
+
+    def test_sufficient_rows(self, rolling_corr):
+        """Au moins 2700 jours de donnees"""
+        assert len(rolling_corr) >= 2700, \
+            f"Seulement {len(rolling_corr)} lignes"
+
+    def test_pairs_file_exists(self):
+        """Le fichier des paires correlees existe"""
+        path = os.path.join(DATA_DIR, "rolling_corr_pairs.csv")
+        assert os.path.exists(path), \
+            "rolling_corr_pairs.csv manquant"
+
+    def test_pairs_top_finance(self, rolling_pairs):
+        """Les paires bancaires doivent figurer parmi les plus correlees"""
+        finance_pairs = [c for c in rolling_pairs.columns
+                        if any(t in c for t in ["BAC", "JPM", "GS", "MS"])]
+        assert len(finance_pairs) >= 2, \
+            "Moins de 2 paires financieres dans le top 10"
+
+    def test_corr_max_greater_than_mean(self, rolling_corr):
+        """La correlation max doit toujours etre >= correlation moyenne"""
+        assert (rolling_corr["corr_max"] >= rolling_corr["corr_moyenne"]).all(), \
+            "Correlation max inferieure a la moyenne — erreur de calcul"
