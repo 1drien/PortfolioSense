@@ -1,6 +1,6 @@
 # ============================================================
 #  PortfolioSense — Scheduler automatique
-#  Met à jour tous les modules chaque soir a 23h
+#  Met a jour tous les modules chaque soir a 23h
 #  Lancer une fois : python scheduler.py
 # ============================================================
 
@@ -44,16 +44,20 @@ def update_all():
     run("data/attribution.py")
 
     # 2. Optimisation
-    if os.path.exists("optimization/main.py"):
-        run("optimization/main.py")
+    if os.path.exists("optimization/optimizer.py"):
+        run("optimization/optimizer.py")
 
     # 3. Risque
-    if os.path.exists("risk/main.py"):
-        run("risk/main.py")
+    if os.path.exists("risk/var.py"):
+        run("risk/var.py")
+    if os.path.exists("risk/backtest.py"):
+        run("risk/backtest.py")
 
     # 4. ML
-    if os.path.exists("ml/main.py"):
-        run("ml/main.py")
+    if os.path.exists("ml/regimes.py"):
+        run("ml/regimes.py")
+    if os.path.exists("ml/shap_explainer.py"):
+        run("ml/shap_explainer.py")
 
     print(f"\n  OK Mise a jour complete -- {datetime.now().strftime('%H:%M:%S')}")
     print(f"{'='*50}\n")
