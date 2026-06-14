@@ -8,6 +8,9 @@ import {
   ResponsiveContainer,
   Legend,
   CartesianGrid,
+  LineChart,
+  Line,
+  ReferenceLine,
 } from "recharts";
 import { api } from "../api";
 
@@ -20,9 +23,11 @@ const REGIME_NAMES = {
 
 export default function Regimes() {
   const [data, setData] = useState(null);
+  const [corrData, setCorrData] = useState(null);
 
   useEffect(() => {
     api.regimes().then(setData);
+    api.correlations().then(setCorrData);
   }, []);
 
   if (!data)
@@ -141,6 +146,47 @@ export default function Regimes() {
           </div>
         ))}
       </div>
+      {corrData && (
+  <>
+    <div className="card">
+      <h2>🔗 Corrélations entre actifs</h2>
+      <p className="caption" style={{ marginTop: 0, marginBottom: 16 }}>
+        Quand les corrélations explosent, les actifs chutent ensemble — la diversification ne protège plus. Signal clé du modèle HMM.
+      </p>
+      <ResponsiveContainer width="100%" height={320}>
+        <LineChart data={corrData.history} margin={{ top: 10, right: 20, bottom: 10, left: 10 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+          <XAxis dataKey="date" tickFormatter={(d) => d?.slice(0, 4)} tickCount={8} />
+          <YAxis domain={[0, 1]} label={{ value: "Corrélation", angle: -90, position: "insideLeft", fontSize: 12 }} />
+          <Tooltip formatter={(v) => v.toFixed(3)} />
+          <ReferenceLine y={0.65} stroke="#c2421f" strokeDasharray="4 4" label={{ value: "Seuil Bear", fill: "#c2421f", fontSize: 11 }} />
+          <ReferenceLine y={0.40} stroke="#0d6b58" strokeDasharray="4 4" label={{ value: "Seuil Bull", fill: "#0d6b58", fontSize: 11 }} />
+          <Line type="monotone" dataKey="corr_moyenne" stroke="#185FA5" dot={false} strokeWidth={1.5} name="Corrélation moyenne" />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+
+    <div className="grid-3">
+      <div className="card metric">
+        <div className="metric-label">Corrélation actuelle</div>
+        <div className="metric-value" style={{ color: corrData.corr_actuelle > 0.55 ? "#c2421f" : "#0d6b58" }}>
+          {corrData.corr_actuelle}
+        </div>
+        <div className="metric-sub">{corrData.corr_actuelle > 0.55 ? "⚠ Élevée" : "✓ Normale"}</div>
+      </div>
+      <div className="card metric">
+        <div className="metric-label">Pic COVID (mars 2020)</div>
+        <div className="metric-value">{corrData.corr_covid_max}</div>
+        <div className="metric-sub">Maximum historique</div>
+      </div>
+      <div className="card metric">
+        <div className="metric-label">Normale (2021)</div>
+        <div className="metric-value">{corrData.corr_normale}</div>
+        <div className="metric-sub">Référence basse</div>
+      </div>
+    </div>
+  </>
+)}
     </>
   );
 }
