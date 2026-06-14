@@ -1,12 +1,22 @@
 import React, { useState, useEffect } from "react";
 import {
-  ScatterChart, Scatter, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, Legend, CartesianGrid,
+  ScatterChart,
+  Scatter,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+  CartesianGrid,
 } from "recharts";
 import { api } from "../api";
 
 const REGIME_COLORS = { bull: "#0d6b58", bear: "#c2421f", lateral: "#9a6a10" };
-const REGIME_NAMES = { bull: "Bull 🟢", bear: "Bear 🔴", lateral: "Latéral 🟡" };
+const REGIME_NAMES = {
+  bull: "Bull 🟢",
+  bear: "Bear 🔴",
+  lateral: "Latéral 🟡",
+};
 
 export default function Regimes() {
   const [data, setData] = useState(null);
@@ -35,7 +45,22 @@ export default function Regimes() {
       </p>
 
       <div className="card regime-hero">
-        <div className="regime-emoji">{meta.emoji}</div>
+        <div className="regime-emoji">
+          <span
+            style={{
+              display: "inline-block",
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              background:
+                data.regime_actuel === "bull"
+                  ? "#0d6b58"
+                  : data.regime_actuel === "bear"
+                    ? "#c2421f"
+                    : "#9a6a10",
+            }}
+          />
+        </div>
         <div style={{ flex: 1 }}>
           <h2 style={{ marginBottom: 4 }}>{meta.label}</h2>
           <p style={{ color: "var(--text-2)", marginBottom: 10 }}>
@@ -49,7 +74,8 @@ export default function Regimes() {
 
       {data.aligne ? (
         <div className="alert alert-success">
-          ✅ Votre stratégie actuelle est alignée avec le régime de marché détecté.
+          ✅ Votre stratégie actuelle est alignée avec le régime de marché
+          détecté.
         </div>
       ) : (
         <div className="alert alert-warning">
@@ -80,7 +106,12 @@ export default function Regimes() {
               type="number"
               dataKey="y"
               domain={["auto", "auto"]}
-              label={{ value: "Marché (base 1)", angle: -90, position: "insideLeft", fontSize: 12 }}
+              label={{
+                value: "Marché (base 1)",
+                angle: -90,
+                position: "insideLeft",
+                fontSize: 12,
+              }}
             />
             <Tooltip
               formatter={(v) => v.toFixed(2)}

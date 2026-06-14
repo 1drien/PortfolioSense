@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { api } from "../api";
+import { FlaskConical, Info } from "lucide-react";
 
 export default function Risk() {
   const [data, setData] = useState(null);
@@ -8,12 +9,17 @@ export default function Risk() {
     api.risk().then(setData);
   }, []);
 
-  if (!data) return <div className="loading">Analyse du risque de votre portefeuille...</div>;
+  if (!data)
+    return (
+      <div className="loading">Analyse du risque de votre portefeuille...</div>
+    );
 
   return (
     <>
       <h1>Mon risque</h1>
-      <p className="subtitle">La question que tout investisseur se pose : combien puis-je perdre ?</p>
+      <p className="subtitle">
+        La question que tout investisseur se pose : combien puis-je perdre ?
+      </p>
 
       <div className="grid-3">
         <div className="card metric">
@@ -22,8 +28,8 @@ export default function Risk() {
             −{data.var_eur.toLocaleString("fr-FR")} €
           </div>
           <div className="metric-sub">
-            VaR 95% : dans 95% des cas, votre perte quotidienne ne dépassera
-            pas ce montant ({data.var_pct}%)
+            VaR 95% : dans 95% des cas, votre perte quotidienne ne dépassera pas
+            ce montant ({data.var_pct}%)
           </div>
         </div>
         <div className="card metric">
@@ -32,7 +38,8 @@ export default function Risk() {
             −{data.cvar_eur.toLocaleString("fr-FR")} €
           </div>
           <div className="metric-sub">
-            CVaR : perte moyenne dans les 5% des pires journées ({data.cvar_pct}%)
+            CVaR : perte moyenne dans les 5% des pires journées ({data.cvar_pct}
+            %)
           </div>
         </div>
         <div className="card metric">
@@ -41,13 +48,15 @@ export default function Risk() {
             −{data.max_dd_eur.toLocaleString("fr-FR")} €
           </div>
           <div className="metric-sub">
-            Maximum Drawdown : la pire chute depuis un sommet ({data.max_dd_pct}%)
+            Maximum Drawdown : la pire chute depuis un sommet ({data.max_dd_pct}
+            %)
           </div>
         </div>
       </div>
 
       <div className="alert alert-success">
-        💬 <strong>En clair :</strong> sur une journée normale, votre portefeuille
+        <Info size={14} style={{ verticalAlign: "-2px" }} />{" "}
+        <strong>En clair :</strong> sur une journée normale, votre portefeuille
         ne devrait pas perdre plus de {data.var_eur.toLocaleString("fr-FR")} €.
         Lors de la pire crise de la décennie (COVID, mars 2020), il aurait
         temporairement perdu {data.max_dd_eur.toLocaleString("fr-FR")} € avant
@@ -71,8 +80,12 @@ export default function Risk() {
           <tbody>
             {data.stress_tests.map((s) => (
               <tr key={s.crise}>
-                <td><strong>{s.crise}</strong></td>
-                <td className="num" style={{ color: "var(--red)" }}>{s.rendement}</td>
+                <td>
+                  <strong>{s.crise}</strong>
+                </td>
+                <td className="num" style={{ color: "var(--red)" }}>
+                  {s.rendement}
+                </td>
                 <td className="num">{s.drawdown}</td>
                 <td className="num" style={{ color: "var(--red)" }}>
                   {s.impact_eur.toLocaleString("fr-FR")} €
@@ -84,15 +97,19 @@ export default function Risk() {
       </div>
 
       <div className="card">
-        <h2>🔬 Validation scientifique</h2>
+        <h2>
+          <FlaskConical size={16} style={{ verticalAlign: "-2px" }} />{" "}
+          Validation scientifique
+        </h2>
         <p style={{ color: "var(--text-2)", marginBottom: 14 }}>
-          Nous ne nous contentons pas de calculer le risque — nous vérifions
-          que nos modèles sont fiables. Le test statistique de Kupiec compare
-          nos prédictions de pertes avec la réalité observée.
+          Nous ne nous contentons pas de calculer le risque — nous vérifions que
+          nos modèles sont fiables. Le test statistique de Kupiec compare nos
+          prédictions de pertes avec la réalité observée.
         </p>
         {data.kupiec_valide ? (
           <span className="badge badge-green">
-            ✅ Modèle de risque statistiquement validé (p-value : {data.kupiec_pvalue})
+            ✅ Modèle de risque statistiquement validé (p-value :{" "}
+            {data.kupiec_pvalue})
           </span>
         ) : (
           <span className="badge badge-amber">
