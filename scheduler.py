@@ -51,7 +51,7 @@ def update_all():
     if os.path.exists("ml/main.py"):
         run("ml/main.py")
 
-    print(f"\n  ✅ Mise à jour complète — {datetime.now().strftime('%H:%M:%S')}")
+    print(f"\n  Mise à jour complète — {datetime.now().strftime('%H:%M:%S')}")
     print(f"{'='*50}\n")
 
 
