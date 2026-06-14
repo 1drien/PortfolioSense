@@ -24,3 +24,5 @@ Thumbs.db
 .idea/
 backend/*.db
 *:Zone.Identifier
+
+frontend/node_modules/
