@@ -17,15 +17,31 @@ def get_mu_sigma(returns):
     return mu, sigma
 
 
-def portfolio_metrics(weights, returns):
+def portfolio_metrics(weights, returns, capital=10000, commission=None):
+    from config import COMMISSION_PAR_ORDRE
+    if commission is None:
+        commission = COMMISSION_PAR_ORDRE
+
     w      = pd.Series(weights)
     ret    = float(returns.mean() @ w * 252)
     vol    = float(np.sqrt(w @ (returns.cov() * 252) @ w))
     sharpe = (ret - RISK_FREE_RATE) / vol
+
+    # Calcul des commissions
+    nb_ordres         = sum(1 for v in weights.values() if v > 0.001)
+    cout_total        = nb_ordres * commission
+    cout_pct          = cout_total / capital
+    rendement_net     = ret - cout_pct
+
     return {
-        "return":     round(ret, 4),
-        "volatility": round(vol, 4),
-        "sharpe":     round(sharpe, 4),
+        "return":          round(ret, 4),
+        "return_net":      round(rendement_net, 4),
+        "volatility":      round(vol, 4),
+        "sharpe":          round(sharpe, 4),
+        "sharpe_net":      round((rendement_net - RISK_FREE_RATE) / vol, 4),
+        "nb_ordres":       nb_ordres,
+        "cout_commission": round(cout_total, 2),
+        "cout_pct":        round(cout_pct * 100, 3),
     }
 
 
@@ -121,7 +137,23 @@ def get_strategy_from_profile(profile: str, returns):
     return mapping.get(profile, risk_parity)(returns)
 
 
-def weights_to_euros(weights: dict, capital: float) -> dict:
-    """Convertit les poids en montants euros."""
-    return {ticker: round(w * capital, 2)
-            for ticker, w in weights.items() if w > 0.001}
+def weights_to_euros(weights: dict, capital: float, 
+                     commission: float = None) -> dict:
+    from config import COMMISSION_PAR_ORDRE
+    if commission is None:
+        commission = COMMISSION_PAR_ORDRE
+
+    allocation = {ticker: round(w * capital, 2)
+                  for ticker, w in weights.items() if w > 0.001}
+
+    nb_ordres  = len(allocation)
+    cout_total = nb_ordres * commission
+    capital_net = capital - cout_total
+
+    return {
+        "allocation":    allocation,
+        "nb_ordres":     nb_ordres,
+        "cout_total":    round(cout_total, 2),
+        "capital_net":   round(capital_net, 2),
+        "capital_brut":  round(capital, 2),
+    }

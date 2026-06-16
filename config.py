@@ -37,3 +37,16 @@ BENCHMARK       = "SPY"
 DATA_DIR      = "data/"
 RETURNS_CLEAN = DATA_DIR + "returns_clean.csv"
 PRICES_RAW    = DATA_DIR + "prices_raw.csv"
+
+# ── Commissions de transaction ──────────────────────────
+COMMISSION_PAR_ORDRE = 1.0   # euros par ordre — Trade Republic par défaut
+
+BROKERS = {
+    "trade_republic": {"type": "fixe",  "valeur": 1.0},
+    "boursorama":     {"type": "fixe",  "valeur": 3.99},
+    "degiro":         {"type": "mixte", "valeur": 3.0, "pct": 0.00026},
+    "autre":          {"type": "fixe",  "valeur": 1.0},
+}
+
+SEUIL_DERIVE         = 0.05   # 5% d'écart avant alerte dérive
+HORIZON_REBALANCING  = 180    # jours entre deux rebalancements suggérés
