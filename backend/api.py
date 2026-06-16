@@ -271,17 +271,26 @@ def train_hmm():
     returns = load_returns()
     market = returns.mean(axis=1)
 
+    # Chargement corrélation glissante (Membre 2)
+    corr_path = os.path.join(os.path.dirname(__file__), "..", "data", "rolling_corr_mean.csv")
+    corr_data = pd.read_csv(corr_path, index_col="Date", parse_dates=True)
+
+    # 4 features au lieu de 3
     feats = pd.DataFrame(index=market.index)
-    feats["ret"] = market
-    feats["vol_20d"] = market.rolling(20).std()
-    feats["ret_5d"] = market.rolling(5).sum()
+    feats["ret"]      = market
+    feats["vol_20d"]  = market.rolling(20).std()
+    feats["ret_5d"]   = market.rolling(5).sum()
+    feats["corr_60d"] = corr_data["corr_moyenne"]
     feats = feats.dropna()
 
-    X = StandardScaler().fit_transform(feats.values)
+    scaler = StandardScaler()
+    X = scaler.fit_transform(feats.values)
+
+    # 20 initialisations pour trouver le meilleur modèle
     best_model, best_score = None, -np.inf
-    for seed in range(5):
+    for seed in range(20):
         m = GaussianHMM(n_components=3, covariance_type="full",
-                        n_iter=200, random_state=seed)
+                        n_iter=2000, random_state=seed, tol=1e-5)
         m.fit(X)
         if m.score(X) > best_score:
             best_score, best_model = m.score(X), m
@@ -295,7 +304,6 @@ def train_hmm():
     regimes = pd.Series([labels[s] for s in states], index=feats.index)
     cumulative = (1 + market.loc[feats.index]).cumprod()
     return regimes, cumulative
-
 
 REGIME_META = {
     "bull":    {"label": "Marché haussier", "emoji": "🟢",
@@ -527,6 +535,70 @@ def black_litterman_endpoint(body: BLViews, authorization: str = Header("")):
         if w > 0.001
     ]
     return {"metrics": result["metrics"], "allocation": allocation}
+
+@app.get("/api/regimes/details")
+def regimes_details(authorization: str = Header("")):
+    auth(authorization)
+    reg, cumulative = train_hmm()
+    returns = load_returns()
+    market = returns.mean(axis=1)
+
+    # Stats par régime
+    stats = {}
+    for regime in ["bull", "bear", "lateral"]:
+        mask = reg == regime
+        r = market.loc[reg.index][mask.values]
+        stats[regime] = {
+            "return_ann":  round(float(r.mean() * 252) * 100, 1),
+            "vol_ann":     round(float(r.std() * np.sqrt(252)) * 100, 1),
+            "n_days":      int(mask.sum()),
+            "pct":         round(float(mask.mean()) * 100, 1),
+        }
+
+    # Matrice de transition
+    from hmmlearn.hmm import GaussianHMM
+    from sklearn.preprocessing import StandardScaler
+    corr_path = os.path.join(os.path.dirname(__file__), "..", "data", "rolling_corr_mean.csv")
+    corr_data = pd.read_csv(corr_path, index_col="Date", parse_dates=True)
+    feats = pd.DataFrame(index=market.index)
+    feats["ret"]      = market
+    feats["vol_20d"]  = market.rolling(20).std()
+    feats["ret_5d"]   = market.rolling(5).sum()
+    feats["corr_60d"] = corr_data["corr_moyenne"]
+    feats = feats.dropna()
+    scaler = StandardScaler()
+    X = scaler.fit_transform(feats.values)
+    best_model, best_score = None, -np.inf
+    for seed in range(20):
+        m = GaussianHMM(n_components=3, covariance_type="full",
+                        n_iter=2000, random_state=seed, tol=1e-5)
+        m.fit(X)
+        if m.score(X) > best_score:
+            best_score, best_model = m.score(X), m
+    states = best_model.predict(X)
+    state_ret = {s: float(market.loc[feats.index][states == s].mean())
+                 for s in range(3)}
+    ordered = sorted(state_ret, key=state_ret.get)
+    label_map = {ordered[0]: "bear", ordered[1]: "lateral", ordered[2]: "bull"}
+    trans = best_model.transmat_
+    transition_matrix = {}
+    for i in range(3):
+        from_label = label_map[i]
+        transition_matrix[from_label] = {}
+        for j in range(3):
+            to_label = label_map[j]
+            transition_matrix[from_label][to_label] = round(float(trans[i][j]), 3)
+
+    # Comparaison HMM vs naïf
+    naive = corr_data["regime_naif"].str.lower()
+    common = naive.index.intersection(reg.index)
+    accord = float((naive.loc[common] == reg.loc[common]).mean())
+
+    return {
+        "stats":             stats,
+        "transition_matrix": transition_matrix,
+        "hmm_vs_naive":      round(accord * 100, 1),
+    }
 
 @app.get("/api/health")
 def health():
