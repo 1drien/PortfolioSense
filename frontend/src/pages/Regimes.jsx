@@ -15,7 +15,6 @@ import {
 import { api } from "../api";
 
 const REGIME_COLORS = { bull: "#0d6b58", bear: "#c2421f", lateral: "#9a6a10" };
-<<<<<<< HEAD
 const REGIME_NAMES  = { bull: "Bull", bear: "Bear", lateral: "Lateral" };
 
 const FEATURE_LABELS = {
@@ -36,21 +35,6 @@ export default function Regimes() {
       headers: { Authorization: `Bearer ${localStorage.getItem("ps_token")}` },
     }).then(r => r.ok ? r.json() : null).then(setDetails);
     api.explain().then(d => setShap(d?.explanations || null));
-=======
-const REGIME_NAMES = {
-  bull: "Bull 🟢",
-  bear: "Bear 🔴",
-  lateral: "Latéral 🟡",
-};
-
-export default function Regimes() {
-  const [data, setData] = useState(null);
-  const [corrData, setCorrData] = useState(null);
-
-  useEffect(() => {
-    api.regimes().then(setData);
-    api.correlations().then(setCorrData);
->>>>>>> origin/feat/dashboard
   }, []);
 
   if (!data)
@@ -98,12 +82,7 @@ export default function Regimes() {
 
       {data.aligne ? (
         <div className="alert alert-success">
-<<<<<<< HEAD
           Votre strategie est alignee avec le regime actuel.
-=======
-          ✅ Votre stratégie actuelle est alignée avec le régime de marché
-          détecté.
->>>>>>> origin/feat/dashboard
         </div>
       ) : (
         <div className="alert alert-warning">
@@ -185,32 +164,11 @@ export default function Regimes() {
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
             <XAxis type="number" dataKey="x"
               tickFormatter={(i) => data.history[i]?.date?.slice(0, 4) || ""}
-<<<<<<< HEAD
               domain={[0, data.history.length - 1]} tickCount={8} />
             <YAxis type="number" dataKey="y" domain={["auto", "auto"]}
               label={{ value: "Marche (base 1)", angle: -90, position: "insideLeft", fontSize: 12 }} />
             <Tooltip formatter={(v) => v.toFixed(2)}
               labelFormatter={(i) => data.history[i]?.date || ""} />
-=======
-              domain={[0, data.history.length - 1]}
-              tickCount={8}
-            />
-            <YAxis
-              type="number"
-              dataKey="y"
-              domain={["auto", "auto"]}
-              label={{
-                value: "Marché (base 1)",
-                angle: -90,
-                position: "insideLeft",
-                fontSize: 12,
-              }}
-            />
-            <Tooltip
-              formatter={(v) => v.toFixed(2)}
-              labelFormatter={(i) => data.history[i]?.date || ""}
-            />
->>>>>>> origin/feat/dashboard
             <Legend />
             {Object.entries(byRegime).map(([regime, points]) => (
               <Scatter key={regime} name={REGIME_NAMES[regime]} data={points}
@@ -229,7 +187,6 @@ export default function Regimes() {
           </div>
         ))}
       </div>
-<<<<<<< HEAD
 
       {details && (
         <div className="card">
@@ -365,49 +322,6 @@ export default function Regimes() {
           </div>
         </div>
       )}
-=======
-      {corrData && (
-  <>
-    <div className="card">
-      <h2>🔗 Corrélations entre actifs</h2>
-      <p className="caption" style={{ marginTop: 0, marginBottom: 16 }}>
-        Quand les corrélations explosent, les actifs chutent ensemble — la diversification ne protège plus. Signal clé du modèle HMM.
-      </p>
-      <ResponsiveContainer width="100%" height={320}>
-        <LineChart data={corrData.history} margin={{ top: 10, right: 20, bottom: 10, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-          <XAxis dataKey="date" tickFormatter={(d) => d?.slice(0, 4)} tickCount={8} />
-          <YAxis domain={[0, 1]} label={{ value: "Corrélation", angle: -90, position: "insideLeft", fontSize: 12 }} />
-          <Tooltip formatter={(v) => v.toFixed(3)} />
-          <ReferenceLine y={0.65} stroke="#c2421f" strokeDasharray="4 4" label={{ value: "Seuil Bear", fill: "#c2421f", fontSize: 11 }} />
-          <ReferenceLine y={0.40} stroke="#0d6b58" strokeDasharray="4 4" label={{ value: "Seuil Bull", fill: "#0d6b58", fontSize: 11 }} />
-          <Line type="monotone" dataKey="corr_moyenne" stroke="#185FA5" dot={false} strokeWidth={1.5} name="Corrélation moyenne" />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-
-    <div className="grid-3">
-      <div className="card metric">
-        <div className="metric-label">Corrélation actuelle</div>
-        <div className="metric-value" style={{ color: corrData.corr_actuelle > 0.55 ? "#c2421f" : "#0d6b58" }}>
-          {corrData.corr_actuelle}
-        </div>
-        <div className="metric-sub">{corrData.corr_actuelle > 0.55 ? "⚠ Élevée" : "✓ Normale"}</div>
-      </div>
-      <div className="card metric">
-        <div className="metric-label">Pic COVID (mars 2020)</div>
-        <div className="metric-value">{corrData.corr_covid_max}</div>
-        <div className="metric-sub">Maximum historique</div>
-      </div>
-      <div className="card metric">
-        <div className="metric-label">Normale (2021)</div>
-        <div className="metric-value">{corrData.corr_normale}</div>
-        <div className="metric-sub">Référence basse</div>
-      </div>
-    </div>
-  </>
-)}
->>>>>>> origin/feat/dashboard
     </>
   );
 }
