@@ -603,3 +603,36 @@ def regimes_details(authorization: str = Header("")):
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+@app.get("/api/correlations")
+def correlations(authorization: str = Header("")):
+    auth(authorization)
+    path = os.path.join(os.path.dirname(__file__), "..", "data", "rolling_corr_mean.csv")
+    
+    if not os.path.exists(path):
+        raise HTTPException(404, "rolling_corr_mean.csv non disponible")
+    
+    df = pd.read_csv(path, index_col=0, parse_dates=True)
+    
+    # Sous-échantillonner pour le frontend (1 point / 3 jours)
+    step = 3
+    data = [
+        {
+            "date": str(d.date()),
+            "corr_moyenne": round(float(row["corr_moyenne"]), 4),
+            "corr_max": round(float(row["corr_max"]), 4),
+            "regime_naif": str(row["regime_naif"]),
+        }
+        for d, row in df.iloc[::step].iterrows()
+    ]
+    
+    corr_actuelle = float(df["corr_moyenne"].iloc[-1])
+    corr_covid    = float(df["2020-02-01":"2020-04-30"]["corr_moyenne"].max())
+    corr_normale  = float(df["2021-01-01":"2021-12-31"]["corr_moyenne"].mean())
+    
+    return {
+        "history": data,
+        "corr_actuelle": round(corr_actuelle, 3),
+        "corr_covid_max": round(corr_covid, 3),
+        "corr_normale": round(corr_normale, 3),
+    }

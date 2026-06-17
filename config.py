@@ -2,23 +2,27 @@
 #  PortfolioSense — Configuration centrale
 #  NE PAS MODIFIER sans accord du groupe
 # ============================================================
+from datetime import date
 
 # --- Période historique ---
 START_DATE = "2015-01-01"
-END_DATE   = "2024-12-31"
+END_DATE   = date.today().strftime("%Y-%m-%d")   # dynamique : jusqu'à aujourd'hui
 
-# --- Univers d'actifs : tickers présents dans returns_clean.csv ---
+# --- Univers d'actifs ---
 TICKERS = [
-    "AAPL", "ABBV", "AMZN", "BA",   "BAC",
-    "BLK",  "CAT",  "CVX",  "GOOGL","GS",
-    "HD",   "JNJ",  "JPM",  "KO",   "META",
-    "MSFT", "NEE",  "NVDA", "PFE",  "PG",
-    "PLD",  "TSLA", "UNH",  "WMT",  "XOM",
+    "AAPL", "MSFT", "NVDA", "GOOGL", "META", "AMD", "INTC", "CRM",
+    "JPM", "BAC", "GS", "BLK", "MS", "AXP",
+    "JNJ", "UNH", "PFE", "ABBV", "MRK", "LLY",
+    "AMZN", "TSLA", "HD", "NKE",
+    "PG", "KO", "WMT",
+    "XOM", "CVX",
+    "CAT", "BA", "HON", "UPS",
+    "PLD", "NEE",
 ]
 
 # --- Paramètres financiers ---
-RISK_FREE_RATE  = 0.04   # aligné avec Membre 2
-RISK_FREE       = 0.04   # alias pour compatibilité
+RISK_FREE_RATE  = 0.04   # utilisé par optimisation
+RISK_FREE       = 0.04   # alias pour compatibilité (risk + data)
 TRADING_DAYS    = 252
 WEIGHT_MIN      = 0.01
 WEIGHT_MAX      = 0.25

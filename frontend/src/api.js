@@ -52,6 +52,7 @@ export const api = {
   frontier: () => request("/api/frontier"),
   risk: () => request("/api/risk"),
   regimes: () => request("/api/regimes"),
+  correlations: () => request("/api/correlations"),
   backtest: () => request("/api/backtest"),
   explain: () => request("/api/explain"),
   refresh: () => request("/api/refresh", { method: "POST" }),

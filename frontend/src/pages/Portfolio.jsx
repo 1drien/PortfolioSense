@@ -14,7 +14,7 @@ import {
   CartesianGrid,
 } from "recharts";
 import { api } from "../api";
-
+import { Lightbulb, FileDown } from "lucide-react";
 const COLORS = [
   "#0d6b58",
   "#1d9e75",
@@ -72,7 +72,9 @@ export default function Portfolio() {
           a.click();
         }}
       >
-        📄 Télécharger mon rapport
+        <>
+          <FileDown size={15} /> Télécharger mon rapport
+        </>
       </button>
       <p className="subtitle">
         Stratégie appliquée : <strong>{STRAT_LABELS[data.profil]}</strong>
@@ -234,7 +236,10 @@ export default function Portfolio() {
 
       {explanations && (
         <div className="card">
-          <h2>🔍 Pourquoi ces choix ? (SHAP)</h2>
+          <h2>
+            <Lightbulb size={16} style={{ verticalAlign: "-2px" }} /> Pourquoi
+            ces choix ? (SHAP)
+          </h2>
           <p className="caption" style={{ marginTop: 0, marginBottom: 16 }}>
             Notre IA explique chaque décision d'allocation en langage clair —
             pas de boîte noire.
