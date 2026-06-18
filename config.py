@@ -20,8 +20,22 @@ TICKERS = [
 ]
 
 # --- Paramètres financiers ---
-RISK_FREE_RATE  = 0.04   # utilisé par optimisation
-RISK_FREE       = 0.04   # alias pour compatibilité (risk + data)
+
+import yfinance as yf
+
+def get_risk_free_rate():
+    """Recupere le taux sans risque dynamiquement via Yahoo Finance (T-bill 13 semaines)."""
+    try:
+        tbill = yf.Ticker("^IRX")
+        rate = tbill.history(period="1d")["Close"].iloc[-1] / 100
+        print(f"Taux sans risque recupere dynamiquement : {rate:.2%}")
+        return round(rate, 4)
+    except Exception as e:
+        print(f"Impossible de recuperer le taux sans risque ({e}) — fallback a 4%")
+        return 0.04
+
+RISK_FREE_RATE = get_risk_free_rate()  # utilisé par optimisation
+RISK_FREE = get_risk_free_rate()  # alias pour compatibilité (risk + data)
 TRADING_DAYS    = 252
 WEIGHT_MIN      = 0.01
 WEIGHT_MAX      = 0.25
