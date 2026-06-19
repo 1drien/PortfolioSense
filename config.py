@@ -2,75 +2,65 @@
 #  PortfolioSense — Configuration centrale
 #  NE PAS MODIFIER sans accord du groupe
 # ============================================================
-
+from datetime import date
 # --- Période historique ---
 START_DATE = "2015-01-01"
-END_DATE   = "2024-12-31"
+END_DATE = date.today().strftime("%Y-%m-%d")
 
-# --- Univers d'actifs : 25 actions S&P 500 diversifiées ---
+# --- Univers d'actifs : 35 actions S&P 500 diversifiées ---
 TICKERS = [
-    # Technologie (8)
-    "AAPL",   # Apple
-    "MSFT",   # Microsoft
-    "NVDA",   # Nvidia
-    "GOOGL",  # Alphabet
-    "META",   # Meta
-    "AMD",    # Advanced Micro Devices
-    "INTC",   # Intel
-    "CRM",    # Salesforce
-
-    # Finance (6)
-    "JPM",    # JPMorgan Chase
-    "BAC",    # Bank of America
-    "GS",     # Goldman Sachs
-    "BLK",    # BlackRock
-    "MS",     # Morgan Stanley
-    "AXP",    # American Express
-
-    # Santé (6)
-    "JNJ",    # Johnson & Johnson
-    "UNH",    # UnitedHealth
-    "PFE",    # Pfizer
-    "ABBV",   # AbbVie
-    "MRK",    # Merck
-    "LLY",    # Eli Lilly
-
-    # Consommation discrétionnaire (4)
-    "AMZN",   # Amazon
-    "TSLA",   # Tesla
-    "HD",     # Home Depot
-    "NKE",    # Nike
-
-    # Consommation de base (3)
-    "PG",     # Procter & Gamble
-    "KO",     # Coca-Cola
-    "WMT",    # Walmart
-
-    # Énergie (2)
-    "XOM",    # ExxonMobil
-    "CVX",    # Chevron
-
-    # Industrie (3)
-    "CAT",    # Caterpillar
-    "BA",     # Boeing
-    "HON",    # Honeywell
-    "UPS",    # United Parcel Service
-
-    # Immobilier (1)
-    "PLD",    # Prologis
-
-    # Services aux collectivités (1)
-    "NEE",    # NextEra Energy
+    "AAPL", "MSFT", "NVDA", "GOOGL", "META", "AMD", "INTC", "CRM",
+    "JPM", "BAC", "GS", "BLK", "MS", "AXP",
+    "JNJ", "UNH", "PFE", "ABBV", "MRK", "LLY",
+    "AMZN", "TSLA", "HD", "NKE",
+    "PG", "KO", "WMT",
+    "XOM", "CVX",
+    "CAT", "BA", "HON", "UPS",
+    "PLD", "NEE",
 ]
 
-# --- Contraintes du portefeuille (à confirmer en réunion) ---
-WEIGHT_MIN   = 0.01   # 1% minimum par actif
-WEIGHT_MAX   = 0.25   # 25% maximum par actif
-RISK_FREE    = 0.04   # Taux sans risque annualisé (proxy : T-Bill US)
-VAR_CONFIDENCE = 0.95 # Niveau de confiance VaR (95%)
-N_REGIMES    = 3      # Nombre d'états HMM : Bull / Bear / Lateral
+# --- Paramètres financiers ---
+
+import yfinance as yf
+
+def get_risk_free_rate():
+    """Recupere le taux sans risque dynamiquement via Yahoo Finance (T-bill 13 semaines)."""
+    try:
+        tbill = yf.Ticker("^IRX")
+        rate = tbill.history(period="1d")["Close"].iloc[-1] / 100
+        print(f"Taux sans risque recupere dynamiquement : {rate:.2%}")
+        return round(rate, 4)
+    except Exception as e:
+        print(f"Impossible de recuperer le taux sans risque ({e}) — fallback a 4%")
+        return 0.04
+
+RISK_FREE_RATE = get_risk_free_rate()  # utilisé par optimisation
+RISK_FREE = get_risk_free_rate()  # alias pour compatibilité (risk + data)
+TRADING_DAYS    = 252
+WEIGHT_MIN      = 0.01
+WEIGHT_MAX      = 0.25
+VAR_CONFIDENCE  = 0.95
+N_SIMULATIONS   = 10_000
+N_REGIMES       = 3
+HMM_LOOKBACK    = 252
+TRAIN_WINDOW    = 504
+TEST_WINDOW     = 126
+BENCHMARK       = "SPY"
 
 # --- Chemins de fichiers ---
-DATA_DIR         = "data/"
-RETURNS_CLEAN    = DATA_DIR + "returns_clean.csv"
-PRICES_RAW       = DATA_DIR + "prices_raw.csv"
+DATA_DIR      = "data/"
+RETURNS_CLEAN = DATA_DIR + "returns_clean.csv"
+PRICES_RAW    = DATA_DIR + "prices_raw.csv"
+
+# ── Commissions de transaction ──────────────────────────
+COMMISSION_PAR_ORDRE = 1.0   # euros par ordre — Trade Republic par défaut
+
+BROKERS = {
+    "trade_republic": {"type": "fixe",  "valeur": 1.0},
+    "boursorama":     {"type": "fixe",  "valeur": 3.99},
+    "degiro":         {"type": "mixte", "valeur": 3.0, "pct": 0.00026},
+    "autre":          {"type": "fixe",  "valeur": 1.0},
+}
+
+SEUIL_DERIVE         = 0.05   # 5% d'écart avant alerte dérive
+HORIZON_REBALANCING  = 180    # jours entre deux rebalancements suggérés
