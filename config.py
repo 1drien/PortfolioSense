@@ -3,12 +3,11 @@
 #  NE PAS MODIFIER sans accord du groupe
 # ============================================================
 from datetime import date
-
 # --- Période historique ---
 START_DATE = "2015-01-01"
-END_DATE   = date.today().strftime("%Y-%m-%d")   # dynamique : jusqu'à aujourd'hui
+END_DATE = date.today().strftime("%Y-%m-%d")
 
-# --- Univers d'actifs ---
+# --- Univers d'actifs : 35 actions S&P 500 diversifiées ---
 TICKERS = [
     "AAPL", "MSFT", "NVDA", "GOOGL", "META", "AMD", "INTC", "CRM",
     "JPM", "BAC", "GS", "BLK", "MS", "AXP",
@@ -21,8 +20,22 @@ TICKERS = [
 ]
 
 # --- Paramètres financiers ---
-RISK_FREE_RATE  = 0.04   # utilisé par optimisation
-RISK_FREE       = 0.04   # alias pour compatibilité (risk + data)
+
+import yfinance as yf
+
+def get_risk_free_rate():
+    """Recupere le taux sans risque dynamiquement via Yahoo Finance (T-bill 13 semaines)."""
+    try:
+        tbill = yf.Ticker("^IRX")
+        rate = tbill.history(period="1d")["Close"].iloc[-1] / 100
+        print(f"Taux sans risque recupere dynamiquement : {rate:.2%}")
+        return round(rate, 4)
+    except Exception as e:
+        print(f"Impossible de recuperer le taux sans risque ({e}) — fallback a 4%")
+        return 0.04
+
+RISK_FREE_RATE = get_risk_free_rate()  # utilisé par optimisation
+RISK_FREE = get_risk_free_rate()  # alias pour compatibilité (risk + data)
 TRADING_DAYS    = 252
 WEIGHT_MIN      = 0.01
 WEIGHT_MAX      = 0.25
@@ -38,3 +51,16 @@ BENCHMARK       = "SPY"
 DATA_DIR      = "data/"
 RETURNS_CLEAN = DATA_DIR + "returns_clean.csv"
 PRICES_RAW    = DATA_DIR + "prices_raw.csv"
+
+# ── Commissions de transaction ──────────────────────────
+COMMISSION_PAR_ORDRE = 1.0   # euros par ordre — Trade Republic par défaut
+
+BROKERS = {
+    "trade_republic": {"type": "fixe",  "valeur": 1.0},
+    "boursorama":     {"type": "fixe",  "valeur": 3.99},
+    "degiro":         {"type": "mixte", "valeur": 3.0, "pct": 0.00026},
+    "autre":          {"type": "fixe",  "valeur": 1.0},
+}
+
+SEUIL_DERIVE         = 0.05   # 5% d'écart avant alerte dérive
+HORIZON_REBALANCING  = 180    # jours entre deux rebalancements suggérés
